@@ -1,160 +1,167 @@
-// src/app/api/loans/request/route.ts
+// src/app/api/loans/apply/route.ts (VERSIÓN SIMULADA REVISADA)
 import { NextResponse, NextRequest } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
 
-// Estructura del objeto de prueba que esperamos del cliente (de MiniKit.commandsAsync.verify().finalPayload)
-interface ISuccessResultFromClient {
-    merkle_root: string;
-    nullifier_hash: string;
-    proof: string; 
-    verification_level: 'orb' | 'device'; 
-    // Otros campos de ISuccessResult que podrían ser útiles o que MiniKit envía
+// Interfaz para la sesión de usuario simulada
+interface SimulatedUserSession {
+  userId: string;
+  displayName?: string; // Ejemplo de otro dato que podría tener la sesión
+  contributionLevel?: number; // Podríamos simular esto basado en algo
 }
 
-interface LoanApiRequestBody {
-    worldIdProofData: ISuccessResultFromClient; // El proof para la acción de préstamo
-    actionClient: string; // La acción que el cliente dice haber usado (ej. "solicitar-prestamo")
-    requestedAmount: number;
-    signalClient?: string; 
+// Placeholder para verifyUserSession - VERSIÓN EXPLÍCITAMENTE SIMULADA
+// En un entorno real, esta función validaría un token/cookie de sesión.
+async function verifyUserSession(request: NextRequest): Promise<SimulatedUserSession | null> {
+  console.log("API /api/loans/apply (SIMULATED): Verificando sesión simulada...");
+  // Para esta simulación, asumimos que si se llama a la API, hay un "usuario simulado".
+  // Podrías añadir lógica aquí para simular diferentes usuarios o estados de sesión si lo necesitas.
+  // Por ejemplo, podrías leer un header 'X-Simulated-User-ID'.
+  // Por ahora, siempre devolvemos un usuario simulado genérico.
+  const MOCK_USER_ID = `sim_user_${Math.random().toString(36).substring(7)}`;
+  const MOCK_CONTRIBUTIONS = Math.floor(Math.random() * 15); // Entre 0 y 14 contribuciones simuladas
+
+  // Si necesitas que el frontend envíe algo para identificar la sesión simulada:
+  // const simulatedSessionToken = request.headers.get('X-Simulated-Session');
+  // if (!simulatedSessionToken) return null;
+
+  return { 
+    userId: MOCK_USER_ID, 
+    displayName: "Usuario de Prueba",
+    contributionLevel: MOCK_CONTRIBUTIONS // El frontend ya envía esto, pero podríamos simularlo aquí también
+  };
 }
 
-const EMPTY_SIGNAL_HASH = "0x00c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4";
-// Si usas signals no vacíos, considera: import { encodeSignal } from '@worldcoin/idkit';
+// CONSTANTES DE CONFIGURACIÓN DEL PRÉSTAMO (Para la simulación)
+const MIN_LOAN_AMOUNT_USDC = 0.5;
+const MAX_LOAN_AMOUNT_USDC_BASE = 5; // Base, podría ajustarse por contribuciones
+const VALID_LOAN_TERMS_DAYS: readonly number[] = [7, 14, 30];
+const INTEREST_RATES_BY_TERM: { [key: number]: { baseRate: number, bonusReduction?: number } } = {
+  // baseRate, y una posible reducción por contribuciones
+  7: { baseRate: 2.0 },
+  14: { baseRate: 3.5 },
+  30: { baseRate: 5.0 },
+};
+// Niveles de contribución para modificar términos (ejemplo)
+const CONTRIBUTION_TIERS = {
+    tier1: { minContributions: 3, interestModifier: -0.2, maxLoanBonus: 1 }, // Reduce tasa en 0.2%, +1 USDC al max
+    tier2: { minContributions: 6, interestModifier: -0.5, maxLoanBonus: 2.5 }, // Reduce tasa en 0.5%, +2.5 USDC al max
+};
+
 
 export async function POST(request: NextRequest) {
-    console.log("API /api/loans/request: Solicitud de préstamo recibida.");
-    try {
-        const body = await request.json();
-        console.log("API /api/loans/request: Cuerpo de la solicitud parseado:", JSON.stringify(body, null, 2));
+  const requestStartTime = Date.now();
+  console.log(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Solicitud recibida.`);
 
-        if (!body || typeof body !== 'object') {
-            return NextResponse.json({ success: false, message: 'Cuerpo de la solicitud vacío o inválido.' }, { status: 400 });
-        }
-
-        const { worldIdProofData, actionClient, requestedAmount, signalClient = "" } = body as LoanApiRequestBody;
-        
-        if (!worldIdProofData || typeof worldIdProofData !== 'object' || 
-            !worldIdProofData.merkle_root || !worldIdProofData.nullifier_hash || 
-            !worldIdProofData.proof || !worldIdProofData.verification_level || 
-            !actionClient || typeof requestedAmount !== 'number' || requestedAmount <= 0 ) {
-            console.error("API /api/loans/request: Faltan campos críticos.", { worldIdProofDataExists: !!worldIdProofData, actionClient, requestedAmount });
-            return NextResponse.json({ success: false, message: 'Datos incompletos para la solicitud de préstamo.' }, { status: 400 });
-        }
-
-        // Validar que la acción sea la correcta para solicitar préstamos
-        const expectedLoanAction = process.env.NEXT_PUBLIC_WORLD_ID_LOAN_ACTION;
-        if (!expectedLoanAction) {
-            console.error("API /api/loans/request: FATAL - NEXT_PUBLIC_WORLD_ID_LOAN_ACTION no configurado.");
-            return NextResponse.json({ success: false, message: "Error de configuración: Falta Action ID para préstamos." }, { status: 500 });
-        }
-        if (actionClient !== expectedLoanAction) {
-            console.error("API /api/loans/request: Acción incorrecta. Esperada:", expectedLoanAction, "Recibida:", actionClient);
-            return NextResponse.json({ success: false, message: "Acción no válida para esta operación de préstamo." }, { status: 400 });
-        }
-        console.log("API /api/loans/request: Payload OK. Action:", actionClient, "Monto:", requestedAmount);
-        
-        const serverSideAppId = process.env.WORLD_ID_APP_ID as `app_${string}`;
-        if(!serverSideAppId) {
-            console.error("API /api/loans/request: FATAL - WORLD_ID_APP_ID (backend) no configurado.");
-            return NextResponse.json({ success: false, message: "Error config servidor: Falta App ID." }, { status: 500 });
-        }
-        
-        const worldIdVerifyUrl = `https://developer.worldcoin.org/api/v2/verify/${serverSideAppId}`;
-        console.log("API /api/loans/request: URL para World ID /v2/verify (ANTES DEL FETCH):", worldIdVerifyUrl);
-
-        let signal_hash_to_send = (signalClient.trim() === "") ? EMPTY_SIGNAL_HASH : ""; 
-        if (signalClient.trim() !== "") {
-             // signal_hash_to_send = encodeSignal(signalClient).toString(); // Si usas @worldcoin/idkit
-             console.warn("API /api/loans/request: Signal no vacío, usando EMPTY_SIGNAL_HASH. Implementar hash real si es necesario.");
-             signal_hash_to_send = EMPTY_SIGNAL_HASH; // Temporalmente
-        }
-
-        const worldIdRequestBody = {
-            merkle_root: worldIdProofData.merkle_root,
-            nullifier_hash: worldIdProofData.nullifier_hash,
-            proof: worldIdProofData.proof, 
-            verification_level: worldIdProofData.verification_level,
-            action: actionClient, 
-            signal_hash: signal_hash_to_send,
-        };
-        console.log("API /api/loans/request: Cuerpo para World ID /v2/verify:", JSON.stringify(worldIdRequestBody, null, 2));
-
-        const verifyRes = await fetch(worldIdVerifyUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(worldIdRequestBody),
-        });
-        
-        const responseTextFromWorldID = await verifyRes.text();
-        console.log("API /api/loans/request: Respuesta cruda de World ID (Loan):", responseTextFromWorldID.substring(0, 500) + "...");
-
-        if (!verifyRes.ok) {
-            console.error("API /api/loans/request: Error de World ID Service (Loan):", verifyRes.status, responseTextFromWorldID);
-            return NextResponse.json({ success: false, message: `Error del servicio World ID: ${verifyRes.status}`, worldIdResponseDetails: responseTextFromWorldID }, { status: verifyRes.status });
-        }
-        
-        let worldIdVerifyJson;
-        try {
-            worldIdVerifyJson = JSON.parse(responseTextFromWorldID);
-        } catch (e) {
-            console.error("API /api/loans/request: Fallo al parsear JSON de World ID (Loan):", responseTextFromWorldID, e);
-            return NextResponse.json({ success: false, message: "Respuesta de World ID (Loan) no JSON válido." }, { status: 500 });
-        }
-        console.log("API /api/loans/request: JSON de World ID (Loan):", worldIdVerifyJson);
-
-        if (!worldIdVerifyJson.success || worldIdVerifyJson.nullifier_hash !== worldIdProofData.nullifier_hash) {
-            console.error("API /api/loans/request: Verificación fallida por World ID o nullifier no coincide (Loan).", worldIdVerifyJson);
-            return NextResponse.json({ success: false, message: worldIdVerifyJson.detail || "Falló la verificación con World ID para el préstamo.", worldIdError: worldIdVerifyJson }, { status: 400 });
-        }
-        
-        const verifiedNullifierHash = worldIdVerifyJson.nullifier_hash; // Este es el identificador del usuario
-        console.log("API /api/loans/request: Verificación de World ID para préstamo exitosa. NullifierHash:", verifiedNullifierHash);
-
-        // --- LÓGICA DE BASE DE DATOS ---
-        const { db } = await connectToDatabase();
-        const usersCollection = db.collection('users');
-        const loansCollection = db.collection('loans'); // Nueva colección para préstamos
-
-        const user = await usersCollection.findOne({ worldIdNullifierHash: verifiedNullifierHash });
-        if (!user) {
-            console.error("API /api/loans/request: Usuario verificado por World ID no encontrado en la base de datos. Nullifier:", verifiedNullifierHash);
-            // Esto no debería pasar si el usuario completó el acceso general primero.
-            return NextResponse.json({ success: false, message: "Usuario no registrado. Por favor, completa el acceso general primero." }, { status: 403 });
-        }
-
-        // (Opcional) Aquí puedes añadir lógica para verificar si el usuario es elegible para un nuevo préstamo
-        // ej. no tener préstamos pendientes, etc. Por ahora, lo omitimos para el MVP.
-
-        const newLoanDocument = {
-            userIdNullifier: verifiedNullifierHash, // El nullifier del usuario que solicita
-            userIdMongo: user._id, // Referencia al _id del usuario en tu colección 'users'
-            requestedAmount: requestedAmount,
-            status: "pending_approval", // Estado inicial del préstamo
-            requestedAt: new Date(),
-            actionUsed: actionClient, // Guardar la acción específica usada (ej. "solicitar-prestamo")
-            worldIdVerificationDetails: { // Guardar detalles de esta verificación específica para auditoría
-                actionVerifiedByWorldId: worldIdVerifyJson.action,
-                verificationCreatedAt: worldIdVerifyJson.created_at,
-                verificationLevelUsed: worldIdProofData.verification_level,
-            }
-            // Campos a añadir después: approvedAmount, interestRate, repaymentDueDate, etc.
-        };
-
-        const loanInsertResult = await loansCollection.insertOne(newLoanDocument);
-        console.log("API /api/loans/request: Solicitud de préstamo creada con ID de MongoDB:", loanInsertResult.insertedId);
-
-        return NextResponse.json({ 
-            success: true, 
-            message: "Solicitud de préstamo registrada exitosamente y está pendiente de aprobación.",
-            loanId: loanInsertResult.insertedId.toString(), // Enviar el ID del préstamo creado
-            status: newLoanDocument.status,
-        }, { status: 201 }); // 201 Created
-
-    } catch (error: any) {
-        console.error("API /api/loans/request: Error GENERAL CATCH:", error);
-        if (error instanceof SyntaxError && error.message.includes("JSON")) { 
-            return NextResponse.json({ success: false, message: 'Error: Cuerpo de la solicitud no es un JSON válido.' }, { status: 400 });
-        }
-        return NextResponse.json({ success: false, message: 'Error Interno del Servidor.', errorDetails: error.message || String(error) }, { status: 500 });
+  try {
+    // 1. Verificar sesión de usuario (simulada)
+    const userSession = await verifyUserSession(request);
+    if (!userSession || !userSession.userId) {
+      console.warn(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Sesión simulada no válida.`);
+      return NextResponse.json(
+        { success: false, error: 'SIMULADO: No autorizado. Se requiere sesión simulada válida.' },
+        { status: 401 }
+      );
     }
+    console.log(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Usuario simulado: ${userSession.userId}, Nivel Contrib: ${userSession.contributionLevel}`);
+
+    // 2. Parsear el cuerpo de la solicitud
+    let body;
+    try {
+        body = await request.json();
+    } catch (e) {
+        console.error(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Error al parsear JSON del body.`, e);
+        return NextResponse.json({ success: false, error: 'SIMULADO: Cuerpo de la solicitud no es un JSON válido.' }, { status: 400 });
+    }
+    
+    const { amount, termDays, purpose, contributionsCount } = body; // contributionsCount enviado por el frontend
+    console.log(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Datos recibidos:`, body);
+
+    // Usar contributionsCount del frontend, o el simulado en la sesión si el frontend no lo envía
+    const effectiveContributions = typeof contributionsCount === 'number' ? contributionsCount : userSession.contributionLevel || 0;
+
+    // Determinar términos dinámicos basados en contribuciones
+    let dynamicMaxLoanAmount = MAX_LOAN_AMOUNT_USDC_BASE;
+    let interestRateModifier = 0;
+
+    if (effectiveContributions >= CONTRIBUTION_TIERS.tier2.minContributions) {
+        dynamicMaxLoanAmount += CONTRIBUTION_TIERS.tier2.maxLoanBonus;
+        interestRateModifier = CONTRIBUTION_TIERS.tier2.interestModifier;
+    } else if (effectiveContributions >= CONTRIBUTION_TIERS.tier1.minContributions) {
+        dynamicMaxLoanAmount += CONTRIBUTION_TIERS.tier1.maxLoanBonus;
+        interestRateModifier = CONTRIBUTION_TIERS.tier1.interestModifier;
+    }
+
+    // 3. Validar entradas
+    if (typeof amount !== 'number' || amount < MIN_LOAN_AMOUNT_USDC || amount > dynamicMaxLoanAmount) {
+      return NextResponse.json(
+        { success: false, error: `SIMULADO: El monto del préstamo debe estar entre ${MIN_LOAN_AMOUNT_USDC} y ${dynamicMaxLoanAmount.toFixed(1)} USDC para tu nivel de ${effectiveContributions} aportes.` },
+        { status: 400 }
+      );
+    }
+    if (typeof termDays !== 'number' || !VALID_LOAN_TERMS_DAYS.includes(termDays)) {
+      return NextResponse.json(
+        { success: false, error: `SIMULADO: Término de préstamo inválido. Opciones válidas: ${VALID_LOAN_TERMS_DAYS.join(', ')} días.` },
+        { status: 400 }
+      );
+    }
+    if (typeof purpose !== 'string' || purpose.trim().length < 5 || purpose.trim().length > 300) {
+      return NextResponse.json(
+        { success: false, error: 'SIMULADO: Por favor, proporciona un propósito válido para el préstamo (5-300 caracteres).' },
+        { status: 400 }
+      );
+    }
+
+    // 4. SIMULACIÓN: No hay verificaciones de DB (préstamos activos, fondos del pool).
+
+    // 5. Calcular interés y monto de repago
+    const termRateInfo = INTEREST_RATES_BY_TERM[termDays];
+    if (!termRateInfo) {
+        console.error(`[${requestStartTime}] SIMULADO: Tasa de interés no definida para el término: ${termDays}`);
+        return NextResponse.json({ success: false, error: 'Error de configuración interna simulado: tasa de interés no encontrada.'}, { status: 500 });
+    }
+    let finalInterestRate = termRateInfo.baseRate + interestRateModifier;
+    finalInterestRate = Math.max(0.1, parseFloat(finalInterestRate.toFixed(1))); // Asegurar que la tasa no sea <= 0 y redondear
+
+    const interestAmount = amount * (finalInterestRate / 100);
+    const repaymentAmount = amount + interestAmount;
+    console.log(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Cálculos de préstamo: Tasa ${finalInterestRate}%, Interés ${interestAmount}, Repago ${repaymentAmount}`);
+
+    // 6. Decidir un estado simulado y un ID de préstamo simulado.
+    const simulatedLoanId = `SIM-LOAN-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    // La "aprobación" podría depender de las contribuciones también
+    const approvalChance = 0.6 + (effectiveContributions * 0.03); // Ejemplo: más contribuciones, mayor probabilidad
+    const simulatedStatus = Math.random() < Math.min(0.95, approvalChance) ? 'SIMULATED_APPROVED' : 'SIMULATED_PENDING_REVIEW'; 
+    
+    let eligibilityNote = `Simulación basada en ${effectiveContributions} aportes. Tasa de interés aplicada: ${finalInterestRate}%.`;
+    if (simulatedStatus === 'SIMULATED_APPROVED') {
+        eligibilityNote = `¡Felicidades! Tu solicitud simulada fue aprobada con una tasa preferencial de ${finalInterestRate}% gracias a tus ${effectiveContributions} aportes.`;
+    }
+
+    // 7. Devolver respuesta de éxito simulada
+    const responsePayload = {
+      success: true,
+      message: `SIMULADO: Solicitud de préstamo ${simulatedStatus === 'SIMULATED_APPROVED' ? 'aprobada (simulación)' : 'recibida para revisión (simulación)'}.`,
+      simulationData: {
+        loanId: simulatedLoanId,
+        requestedAmount: amount,
+        termDays: termDays,
+        interestRate: finalInterestRate,
+        interestAmount: parseFloat(interestAmount.toFixed(2)),
+        repaymentAmount: parseFloat(repaymentAmount.toFixed(2)),
+        purpose: purpose.trim(),
+        status: simulatedStatus,
+        simulatedProcessingTime: `${Math.floor(Math.random() * 2) + 1} días hábiles (sim.)`,
+        eligibilityNote: eligibilityNote,
+        userContributionsAtApplication: effectiveContributions
+      }
+    };
+    console.log(`[${requestStartTime}] API /api/loans/apply (SIMULATED): Respuesta enviada:`, responsePayload);
+    return NextResponse.json(responsePayload, { status: 200 });
+
+  } catch (error: any) {
+    console.error(`[${requestStartTime}] Error en API /api/loans/apply (SIMULATED):`, error.stack || error.message || error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Error interno del servidor durante la simulación.' },
+      { status: 500 }
+    );
+  }
 }

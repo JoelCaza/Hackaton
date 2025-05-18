@@ -24,3 +24,236 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* src/app/globals.css o similar */
+
+/* Pool de Energía */
+.energy-pool-container {
+  width: 120px; /* Ancho del contenedor del pool */
+  height: 180px; /* Alto del contenedor del pool */
+  background-color: rgba(14, 165, 233, 0.1); /* sky-500 con baja opacidad */
+  border: 3px solid rgba(56, 189, 248, 0.7); /* sky-400 */
+  border-radius: 12px; /* Bordes redondeados */
+  position: relative;
+  overflow: hidden; /* Para que el relleno no se desborde visualmente */
+  box-shadow: inset 0 0 20px rgba(14, 165, 233, 0.3), 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.energy-pool-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, rgba(14, 165, 233, 0.9) 0%, rgba(56, 189, 248, 0.7) 70%, rgba(125, 211, 252, 0.5) 100%); /* Gradiente azul cielo */
+  transition: height 1.5s cubic-bezier(0.65, 0, 0.35, 1); /* Transición suave para la altura */
+  box-shadow: inset 0 -5px 10px rgba(10, 100, 150, 0.3);
+}
+
+/* Efecto de brillo en la superficie del "líquido" */
+.energy-pool-surface-glow {
+  position: absolute;
+  top: -2px; /* Ligeramente por encima para simular el borde del líquido */
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(173, 230, 255, 0.8); /* Blanco azulado brillante */
+  border-radius: 2px;
+  box-shadow: 0 0 8px 2px rgba(173, 230, 255, 0.7);
+  opacity: 0.8;
+}
+
+/* Marcas de nivel en el pool (opcional) */
+.energy-pool-markings {
+  position: absolute;
+  top: 0;
+  right: -30px; /* Fuera del contenedor principal */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: rgba(14, 165, 233, 0.8);
+  padding: 5px 0;
+}
+.energy-pool-markings span {
+  display: block;
+}
+
+
+/* Chispa de Energía que vuela hacia el pool */
+@keyframes flyAndMergeSpark {
+  0% {
+    opacity: 0;
+    /* Empieza desde arriba y un poco a la izquierda */
+    transform: translate(-80vw, -70vh) scale(0.3) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-20vw, -30vh) scale(1.5) rotate(90deg); /* Vuela hacia el centro */
+  }
+  /* Punto donde se acerca al pool (ajustar coordenadas si el pool no está centrado en viewport) */
+  70% {
+    opacity: 1;
+    /* Estos valores intentan apuntar al centro del .energy-pool-container */
+    /* Como .flying-energy-spark es hijo del body (o un contenedor fixed/absolute), */
+    /* sus transformaciones son relativas a ese contexto. */
+    /* Asumiendo que el pool está aproximadamente centrado y algo abajo: */
+    transform: translate(0vw, 10vh) scale(1) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    /* "Entra" en el pool y desaparece */
+    transform: translate(0vw, 20vh) scale(0.2) rotate(270deg);
+  }
+}
+
+.flying-energy-spark {
+  position: fixed; /* Fijo en el viewport para la animación */
+  top: 0; /* Controlado por transform */
+  left: 0; /* Controlado por transform */
+  
+  font-size: 2.5rem; /* Tamaño del emoji de chispa */
+  text-shadow: 0 0 10px gold, 0 0 20px orange;
+  
+  z-index: 100; /* Encima de todo durante la animación */
+  
+  /* Aplicar la animación */
+  animation: flyAndMergeSpark var(--contribution-animation-duration, 1.8s) cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+/* Para pasar la duración desde JS (ya está en constante arriba) */
+:root {
+  --contribution-animation-duration: 1.8s; 
+}
+
+/* Animación de pulso para el pool */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: inset 0 0 20px rgba(14, 165, 233, 0.3), 0 0 15px rgba(56, 189, 248, 0.2), 0 0 30px rgba(56, 189, 248, 0.0); }
+  50% { box-shadow: inset 0 0 25px rgba(56, 189, 248, 0.5), 0 0 25px rgba(56, 189, 248, 0.4), 0 0 40px rgba(56, 189, 248, 0.3); }
+}
+
+.animate-ping-once { /* Para el destello al recibir contribución */
+    animation: pulseGlow 0.8s cubic-bezier(0.4, 0, 0.6, 1);
+}
+/* Animación de la chispa de contribución del usuario */
+@keyframes flyAndMergeSpark {
+  0% {
+    opacity: 0;
+    transform: translate(-50vw, -60vh) scale(0.3) rotate(0deg); /* Origen más lejano */
+  }
+  30% { /* Vuela hacia el centro de la pantalla, más visible */
+    opacity: 1;
+    transform: translate(0vw, -30vh) scale(1.5) rotate(90deg);
+  }
+  70% { /* Se acerca al área general del pool visible */
+    opacity: 1;
+    /* Ajusta el translateY para que "caiga" hacia donde está el pool visible */
+    /* Si el pool está a media altura, podría ser translateY(0vh) o un valor positivo pequeño */
+    transform: translate(0vw, -5vh) scale(1) rotate(180deg); 
+  }
+  100% { /* Se fusiona y desaparece */
+    opacity: 0;
+    transform: translate(0vw, 0vh) scale(0.2) rotate(270deg); /* Cae en el centro y se desvanece */
+  }
+}
+
+.flying-energy-spark {
+  position: fixed; /* Fijo en el viewport para la animación global */
+  top: 0; 
+  left: 0; 
+  font-size: 2.8rem; /* Más grande */
+  text-shadow: 0 0 12px gold, 0 0 24px orange, 0 0 3px black;
+  z-index: 100; /* Muy alto para estar encima de todo durante la animación */
+  animation: flyAndMergeSpark var(--contribution-animation-duration, 1.8s) cubic-bezier(0.5, 0.05, 0.5, 0.95) forwards;
+  pointer-events: none; /* Para que no capture eventos del mouse */
+}
+/* Variable para duración (ya definida en el componente, pero puede estar aquí también) */
+:root {
+  --contribution-animation-duration: 1.8s; 
+}
+
+
+/* Estilos para el Pool de Energía */
+.energy-pool-container {
+  width: 100px; /* Más pequeño y vertical */
+  height: 150px;
+  background-color: rgba(14, 116, 144, 0.2); /* sky-700 con baja opacidad */
+  border: 2px solid rgba(56, 189, 248, 0.6); /* sky-400 */
+  border-radius: 10px 10px 60px 60px / 10px 10px 20px 20px; /* Forma de "vaso" más sutil */
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 15px rgba(14, 165, 233, 0.25), 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.energy-pool-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, 
+    rgba(14, 165, 233, 0.95) 0%,  /* sky-600 */
+    rgba(56, 189, 248, 0.85) 60%, /* sky-400 */
+    rgba(125, 211, 252, 0.7) 100% /* sky-300 */
+  );
+  transition: height 1.5s cubic-bezier(0.65, 0, 0.35, 1);
+  box-shadow: inset 0 -3px 8px rgba(10, 100, 150, 0.2);
+}
+
+.energy-pool-surface-glow {
+  position: absolute;
+  top: -1px; /* Ligeramente por encima para simular el borde del líquido */
+  left: -5%; /* Un poco más ancho que el contenedor para efecto de desborde */
+  width: 110%;
+  height: 3px;
+  background-color: rgba(224, 242, 254, 0.9); /* sky-100, más brillante */
+  border-radius: 50%; /* Forma elíptica */
+  box-shadow: 0 0 10px 3px rgba(173, 230, 255, 0.8); /* Resplandor blanco azulado */
+  opacity: 0.9;
+  filter: blur(1px);
+}
+
+.energy-pool-markings {
+  position: absolute;
+  top: 0;
+  right: -20px; 
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.6rem; 
+  color: rgba(255, 255, 255, 0.7); /* Texto blanco para contraste con fondo oscuro del pool */
+  padding: 2px 0;
+  text-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+.energy-pool-markings span:last-child { /* "MAX" */
+  position: absolute;
+  top: -4px; 
+}
+
+/* Efecto de pulso para el contenedor del pool al recibir contribución directa */
+@keyframes pulseStrongOnce {
+  0% { transform: scale(1); box-shadow: 0 0 15px rgba(56, 189, 248, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.3); }
+  50% { transform: scale(1.03); box-shadow: 0 0 30px rgba(56, 189, 248, 0.5), inset 0 0 25px rgba(56, 189, 248, 0.6); } /* Más brillo */
+  100% { transform: scale(1); box-shadow: 0 0 15px rgba(56, 189, 248, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.3); }
+}
+.animate-pulse-strong { /* Aplicado a un overlay en el pool, no al pool mismo para no afectar el layout */
+  animation: pulseStrongOnce 0.8s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Partículas para el efecto ambiental del pool */
+@keyframes driftAndFadeParticle {
+  0% { transform: translateY(0px) scale(1); opacity: 0; }
+  20%, 80% { opacity: 1; } /* Opacidad máxima durante más tiempo */
+  100% { transform: translateY(-180px) scale(0.3); opacity: 0; } /* Sube más y se encoge más */
+}
+
+.pool-particle {
+  position: absolute;
+  bottom: 5%; /* Empiezan un poco dentro del pool visible */
+  background-color: rgba(173, 230, 252, 0.6); /* Color de partícula */
+  border-radius: 50%;
+  animation-name: driftAndFadeParticle;
+  animation-timing-function: linear; /* Movimiento constante */
+  animation-iteration-count: infinite;
+  /* Duración, delay, tamaño y left se establecen inline en JSX para aleatoriedad */
+  box-shadow: 0 0 5px rgba(173, 230, 252, 0.5); /* Pequeño halo */
+}
