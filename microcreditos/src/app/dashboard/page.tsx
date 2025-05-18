@@ -1,9 +1,8 @@
-// src/app/dashboard/page.tsx
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
-// Importaciones de MiniKit que necesitarás para handleSignInWithWorldID
+// Importaciones de MiniKit para el flujo de login SIWE en esta página
 import {
   MiniKit,
   WalletAuthInput,
@@ -11,11 +10,13 @@ import {
   MiniAppWalletAuthErrorPayload,
 } from '@worldcoin/minikit-js';
 
+// Interfaz para la información del usuario
 interface UserInfo {
   address: string;
   username: string | null;
 }
 
+// Componente Placeholder para el Avatar
 const UserAvatarPlaceholder = ({ className }: { className?: string }) => (
   <div className={`bg-slate-300 rounded-full flex items-center justify-center overflow-hidden ${className || "w-24 h-24"}`}>
     <svg className="w-3/4 h-3/4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
@@ -24,10 +25,11 @@ const UserAvatarPlaceholder = ({ className }: { className?: string }) => (
   </div>
 );
 
-const TARGET_CONTRIBUTIONS_FOR_FULL_VISUAL = 50; // Contribuciones para que el pool se vea "lleno"
-const CONTRIBUTION_ANIMATION_DURATION = 1800; // ms
-const USER_INFO_LOCALSTORAGE_KEY = "worldIdUserInfo"; // Key para info de usuario
-const POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY = "poolContributionsCountV2"; // Key para aportes al pool
+// Constantes para la visualización y animación del pool
+const TARGET_CONTRIBUTIONS_FOR_FULL_VISUAL = 50;
+const CONTRIBUTION_ANIMATION_DURATION = 2200; // ms - Duración animación chispa principal
+const USER_INFO_LOCALSTORAGE_KEY = "worldIdUserInfo"; // Key de tu código
+const POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY = "poolContributionsCountV2"; // Key de tu código
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function DashboardPage() {
 
   const [userInfo, setUserInfo] = React.useState<UserInfo | null>(null);
   const [isLoadingUserInfo, setIsLoadingUserInfo] = React.useState(true);
-  const [isAuthLoading, setIsAuthLoading] = React.useState(false); // Para el proceso de login/logout
+  const [isAuthLoading, setIsAuthLoading] = React.useState(false);
   const [authError, setAuthError] = React.useState<string | null>(null);
 
   const [animateNewContribution, setAnimateNewContribution] = React.useState(false);
@@ -43,153 +45,103 @@ export default function DashboardPage() {
   const [poolContributionsCount, setPoolContributionsCount] = React.useState(0);
   const [pulsePool, setPulsePool] = React.useState(false);
 
-  // Cargar estado inicial del usuario y contador de contribuciones del pool
+  // Estados para el flip del pool de energía
+  const [isPoolFlipped, setIsPoolFlipped] = React.useState(false);
+  const [simulatedPoolTotalValue, setSimulatedPoolTotalValue] = React.useState<number>(12345.67);
+
+
   React.useEffect(() => {
+    console.log("Dashboard [Mount]: Leyendo de localStorage con clave:", POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY);
     const savedContributions = parseInt(localStorage.getItem(POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY) || '0', 10);
     setPoolContributionsCount(savedContributions);
+    console.log("Dashboard [Mount]: Contribuciones iniciales cargadas:", savedContributions);
 
     const storedUser = localStorage.getItem(USER_INFO_LOCALSTORAGE_KEY);
     if (storedUser) {
-      try {
-        const parsedUser: UserInfo = JSON.parse(storedUser);
-        setUserInfo(parsedUser);
-        // Opcional: Si necesitas repoblar el estado interno de MiniKit al cargar
-        // if (MiniKit.isInitialized() && parsedUser.address && typeof window !== 'undefined') {
-        //    ((window as any).MiniKit as any).walletAddress = parsedUser.address;
-        //    ((window as any).MiniKit.user as any).username = parsedUser.username;
-        // }
-      } catch (e) {
-        console.error("Error parsing user info from localStorage", e);
-        localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
-      }
+      try { setUserInfo(JSON.parse(storedUser)); }
+      catch (e) { localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY); }
     }
     setIsLoadingUserInfo(false);
   }, []);
 
-  // Efecto para la animación de NUEVA contribución directa del usuario
   React.useEffect(() => {
-    if (searchParams.get('contribution') === 'true') {
-      setAnimateNewContribution(true); // Dispara la animación de la "chispa"
+    const contributionParam = searchParams.get('contribution');
+    if (contributionParam === 'true') {
+      setAnimateNewContribution(true); 
       setAnimationTriggerKey(prevKey => prevKey + 1);
-
-      // El contador ya se actualizó en localStorage DESDE la página que originó la contribución (exchange o survey)
-      // Aquí solo leemos el valor más reciente para actualizar el % de llenado visual
       const updatedContributions = parseInt(localStorage.getItem(POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY) || '0', 10);
       setPoolContributionsCount(updatedContributions);
-      
-      setPulsePool(true); // Activar pulso del pool por la nueva contribución
-
-      // Limpiar el parámetro de la URL
+      setPulsePool(true); 
       const currentPath = window.location.pathname;
       window.history.replaceState({ ...window.history.state, as: currentPath, url: currentPath }, '', currentPath);
-
-      const animationTimer = setTimeout(() => setAnimateNewContribution(false), CONTRIBUTION_ANIMATION_DURATION);
-      const pulseTimer = setTimeout(() => setPulsePool(false), 800); // Duración del pulso visual del pool
-      return () => { clearTimeout(animationTimer); clearTimeout(pulseTimer); };
+      
+      const animationClearTimer = setTimeout(() => setAnimateNewContribution(false), CONTRIBUTION_ANIMATION_DURATION);
+      const pulseTimer = setTimeout(() => setPulsePool(false), 1200); 
+      return () => { clearTimeout(animationClearTimer); clearTimeout(pulseTimer); };
     }
   }, [searchParams]);
 
   const poolFillPercentage = Math.min((poolContributionsCount / TARGET_CONTRIBUTIONS_FOR_FULL_VISUAL) * 100, 100);
 
-  // --- FUNCIÓN DE INICIO DE SESIÓN CON WORLD ID MINIKIT (COMPLETA ESTA LÓGICA) ---
+  // --- FUNCIÓN DE INICIO DE SESIÓN CON WORLD ID MINIKIT (SIWE) ---
+  // ** DEBES COMPLETAR ESTA FUNCIÓN CON TU LÓGICA REAL DE MINIKIT Y LLAMADAS A TUS ENDPOINTS /api/nonce y /api/complete-siwe **
   const handleSignInWithWorldID = async () => {
     setIsAuthLoading(true);
     setAuthError(null);
-
     if (typeof window !== 'undefined' && !MiniKit.isInstalled()) {
       setAuthError('World App no está instalado o MiniKit no está disponible.');
-      setIsAuthLoading(false);
-      alert('Por favor, asegúrate de tener World App instalado y configurado.');
-      return;
+      setIsAuthLoading(false); alert('Asegúrate de tener World App instalado.'); return;
     }
-
     try {
-      // 1. Obtener el nonce de tu backend
-      console.log("Dashboard: Solicitando nonce...");
-      const nonceRes = await fetch('/api/nonce'); // Necesitas este endpoint
-      if (!nonceRes.ok) {
-        const errData = await nonceRes.json().catch(() => ({ message: 'Error al obtener nonce del servidor.' }));
-        throw new Error(errData.message || 'No se pudo obtener el nonce.');
-      }
+      console.log("Dashboard: Solicitando nonce para SIWE...");
+      const nonceRes = await fetch('/api/nonce'); // TU ENDPOINT
+      if (!nonceRes.ok) { throw new Error((await nonceRes.json().catch(()=>({}))).message || 'Error al obtener nonce.'); }
       const { nonce } = await nonceRes.json();
-      if (!nonce) throw new Error('Nonce inválido recibido.');
-      console.log("Dashboard: Nonce recibido:", nonce);
-
-      // 2. Preparar y ejecutar el comando walletAuth de MiniKit
-      const authRequest: WalletAuthInput = {
-        nonce: nonce,
-        statement: 'Inicia sesión en la plataforma con tu World ID.',
-      };
-      console.log("Dashboard: Enviando solicitud walletAuth a MiniKit...");
+      if (!nonce) throw new Error('Nonce inválido.');
+      
+      const authRequest: WalletAuthInput = { nonce, statement: 'Inicia sesión en la plataforma.' };
       const { finalPayload } = await MiniKit.commandsAsync.walletAuth(authRequest);
 
       if (finalPayload.status === 'error') {
-        const errorPayload = finalPayload as MiniAppWalletAuthErrorPayload;
-        const errorMessage = (errorPayload as any)?.detail || (errorPayload as any)?.message || 
-                             `Error de Autenticación (Código: ${(errorPayload as any)?.code || 'desconocido'})`;
-        console.error("Dashboard: Error de MiniKit walletAuth:", errorPayload);
-        throw new Error(errorMessage);
+        const errP = finalPayload as MiniAppWalletAuthErrorPayload;
+        throw new Error((errP as any)?.detail || (errP as any)?.message || `Error de Autenticación (Código: ${(errP as any)?.code})`);
       }
-      
       const successPayload = finalPayload as MiniAppWalletAuthSuccessPayload;
-      console.log("Dashboard: Prueba de walletAuth obtenida:", successPayload);
-
-      const addressFromPayload = successPayload.address;
-      // MiniKit.user.username debería estar disponible después de un auth exitoso
-      const usernameFromMiniKit = MiniKit.user?.username; 
-
-      if (!addressFromPayload) {
-          throw new Error("No se pudo obtener la dirección de la billetera desde el payload de éxito.");
-      }
-
-      // 3. Enviar el payload al backend para verificación SIWE
-      console.log("Dashboard: Enviando prueba a /api/complete-siwe para verificación...");
-      const verifyRes = await fetch('/api/complete-siwe', { // Necesitas este endpoint
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payload: successPayload, 
-          nonce: nonce, 
-          username: usernameFromMiniKit || null,
-        }),
+      
+      const verifyRes = await fetch('/api/complete-siwe', { // TU ENDPOINT
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: successPayload, nonce, username: MiniKit.user?.username || null }),
       });
+      const verificationResult = await verifyRes.json();
+      if (!verifyRes.ok || !verificationResult.isValid) { throw new Error(verificationResult.message || 'Verificación SIWE fallida.'); }
 
-      const verificationBackendResult = await verifyRes.json();
-      if (!verifyRes.ok || !verificationBackendResult.isValid) {
-        console.error("Dashboard: Error de verificación SIWE en backend:", verificationBackendResult);
-        throw new Error(verificationBackendResult.message || 'La verificación de la firma SIWE falló en el backend.');
-      }
-      console.log("Dashboard: Verificación SIWE en backend exitosa.");
-
-      // 4. Autenticación Exitosa
-      const authenticatedUserInfo: UserInfo = {
-        address: addressFromPayload,
-        username: usernameFromMiniKit || null,
-      };
+      const authenticatedUserInfo: UserInfo = { address: successPayload.address, username: MiniKit.user?.username || null };
       setUserInfo(authenticatedUserInfo);
       localStorage.setItem(USER_INFO_LOCALSTORAGE_KEY, JSON.stringify(authenticatedUserInfo));
       setAuthError(null);
-      console.log("Dashboard: Usuario autenticado y sesión guardada:", authenticatedUserInfo);
-
+      console.log("Dashboard: Usuario autenticado (SIWE) y sesión guardada en localStorage:", authenticatedUserInfo);
+      // Si usas NextAuth, aquí llamarías a signIn()
     } catch (err: any) {
-      console.error('Dashboard: Error detallado en handleSignInWithWorldID:', err);
-      setAuthError(err.message || 'Ocurrió un error desconocido durante el inicio de sesión.');
-      setUserInfo(null);
-      localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
+      setAuthError(err.message || 'Error en inicio de sesión.');
+      setUserInfo(null); localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
     } finally {
       setIsAuthLoading(false);
     }
   };
-  // --- FIN DE LA FUNCIÓN DE INICIO DE SESIÓN ---
 
   const handleSignOut = () => {
     localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
     setUserInfo(null);
-    // No reseteamos el poolContributionsCount aquí, ya que es "comunitario"
-    // y persiste para el navegador del usuario independientemente de su sesión de login.
-    router.push('/'); // O a tu página de login
+    router.push('/'); 
   };
   
+  const handlePoolClick = () => {
+    setIsPoolFlipped(!isPoolFlipped);
+    if (!isPoolFlipped) { 
+        setSimulatedPoolTotalValue(parseFloat((poolContributionsCount * 12.34 + 4321 + Math.random() * 600).toFixed(2)));
+    }
+  };
+
   const baseButtonClass = "w-full px-6 py-3 text-base md:text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 transform transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-md disabled:hover:scale-100";
 
   if (isLoadingUserInfo) {
@@ -197,11 +149,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-200 via-sky-100 to-slate-200 text-slate-800 relative">
+    <div className="flex flex-col items-center min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-100 via-sky-50 to-slate-100 text-slate-800 relative overflow-hidden">
       
-      {/* "Chispa" animada para la contribución individual del usuario */}
+      {/* Chispa de energía del APORTE DEL USUARIO ACTUAL (más grande y centrada al inicio) */}
       {animateNewContribution && userInfo && (
-        <div key={animationTriggerKey} className="flying-energy-spark">✨</div>
+        <div 
+            key={animationTriggerKey} 
+            // Este div es el contenedor para posicionar la animación inicial de la chispa
+            className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none" 
+        >
+          <div className="flying-energy-spark">✨</div> {/* La chispa que se anima */}
+        </div>
       )}
 
       <header className="mb-6 md:mb-8 text-center w-full max-w-md relative z-20">
@@ -211,9 +169,9 @@ export default function DashboardPage() {
         {authError && <p className="text-red-600 mt-2 text-sm bg-red-100 px-3 py-1 rounded-md shadow">{authError}</p>}
       </header>
 
-      {/* Contenido principal: Tarjeta de usuario (o login) y luego el pool */}
       {userInfo ? (
         <>
+          {/* Tarjeta de Usuario */}
           <div className="mb-6 md:mb-8 bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50 relative z-20">
             <UserAvatarPlaceholder className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 border-4 border-white shadow-lg" />
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate text-center">
@@ -226,75 +184,86 @@ export default function DashboardPage() {
               type="button" onClick={handleSignOut} disabled={isAuthLoading}
               className="w-full max-w-xs mx-auto px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:ring-4 focus:ring-red-300 rounded-lg shadow-md"
             >
-              {isAuthLoading && userInfo ? 'Cerrando...' : 'Cerrar Sesión'}
+              {isAuthLoading && userInfo ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
             </button>
           </div>
 
-          {/* Sección Visible del Pool de "Energía" */}
+          {/* Sección Visible del Pool de "Energía" (Vertical) - INTERACTIVO (FLIP) */}
           <section 
             id="energy-pool-section"
-            className="w-full max-w-md my-6 md:my-8 p-6 bg-gradient-to-br from-sky-500 to-sky-700 rounded-2xl shadow-xl text-center relative overflow-hidden border-4 border-sky-400/50 z-10"
+            onClick={handlePoolClick}
+            className={`w-full max-w-xs sm:max-w-sm my-4 md:my-6 rounded-2xl shadow-xl text-center relative overflow-hidden border-4 border-sky-400/50 z-10 cursor-pointer group energy-pool-card-container ${isPoolFlipped ? 'is-flipped' : ''}`}
+            // El fondo se aplica a las caras para permitir el flip
           >
-            {/* Efecto de pulso al recibir contribución del usuario actual */}
-            <div className={`absolute inset-0 bg-sky-300 transition-opacity duration-700 ease-out ${pulsePool ? 'opacity-20 animate-pulse-strong' : 'opacity-0'}`}></div>
-            
-            {/* Efecto de fondo ambiental (partículas) */}
-            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-              {Array.from({length: 15}).map((_,i) => (
-                <div key={`particle-${i}`} className="pool-particle" style={{
-                  left: `${Math.random()*100}%`,
-                  animationDelay: `${Math.random()*5}s`,
-                  animationDuration: `${Math.random()*10 + 10}s`, // Duraciones más largas para efecto sutil
-                  width: `${Math.random()*3+1}px`,
-                  height: `${Math.random()*3+1}px`,
-                  opacity: Math.random() * 0.3 + 0.1, // Opacidad inicial baja
-                }}></div>
-              ))}
-            </div>
-
-            <div className="relative z-10"> {/* Contenido del pool encima de los efectos de fondo */}
-              <h3 className="text-2xl font-semibold text-white mb-2 [text-shadow:_0_1px_2px_rgb(0_0_0_/_40%)]">Fondo Comunitario</h3>
-              <p className="text-sm text-sky-100 mb-5 [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">Creciendo con el apoyo de la comunidad.</p>
-              
-              <div className="energy-pool-container mx-auto"> {/* El "vaso" que se llena */}
-                <div className="energy-pool-fill" style={{ height: `${poolFillPercentage}%` }}>
-                  <div className="energy-pool-surface-glow"></div>
+            <div className="energy-pool-flip-inner"> {/* Para la animación de flip */}
+              {/* CARA FRONTAL DEL POOL (Nivel de llenado) */}
+              <div className="energy-pool-card-face energy-pool-card-front p-6 bg-gradient-to-br from-sky-500 to-sky-700">
+                <div className={`absolute inset-0 bg-white/20 transition-all duration-500 ease-out ${pulsePool ? 'opacity-100 scale-110 animate-pulse-strong' : 'opacity-0 scale-100'}`}></div>
+                
+                {/* Pequeñas cargas ambientales */}
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none rounded-xl">
+                    {Array.from({length: 7}).map((_,i) =>( // Pequeñas chispas ambientales
+                        <div key={`other-user-charge-${i}`} className="other-user-ambient-charge" style={{
+                            left: `${5 + Math.random()*90}%`, 
+                            animationDelay: `${Math.random() * 6 + i * 0.3}s`, 
+                            animationDuration: `${Math.random() * 5 + 5}s` 
+                        }}></div>
+                    ))}
                 </div>
-                <div className="energy-pool-markings">
-                  <span></span> {/* Para la marca de 0% implícita en la base */}
-                  <span>MAX</span> {/* Para la marca del 100% arriba */}
+
+                <div className="relative z-10"> {/* Contenido del pool */}
+                  <h3 className="text-2xl font-semibold text-white mb-2 [text-shadow:_0_1px_2px_rgb(0_0_0_/_40%)]">Fondo Comunitario</h3>
+                  <p className="text-sm text-sky-100 mb-5 [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">Energía Colectiva</p>
+                  <div className="energy-pool-visual-container mx-auto">
+                    <div className="energy-pool-fill" style={{ 
+                      height: `${poolFillPercentage}%`,
+                      backgroundColor: `hsl(${180 + poolFillPercentage * 0.6}, 70%, ${50 + poolFillPercentage * 0.1}%)` 
+                    }}>
+                      <div className="energy-pool-surface-glow"></div>
+                    </div>
+                    <div className="energy-pool-markings">
+                        <span>0%</span> {/* Texto directo para 0% */}
+                        <span>MAX</span>
+                    </div>
+                  </div>
+                  <p className="text-lg text-white mt-5 font-bold [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">
+                    {poolContributionsCount.toLocaleString()} Aportes del Usuario
+                  </p>
+                  <p className="text-xs text-sky-200">(Clic para ver valor total)</p>
                 </div>
               </div>
-              
-              <p className="text-lg text-white mt-5 font-bold [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">
-                {poolContributionsCount.toLocaleString()} Aportes Registrados
-              </p>
-              <p className="text-xs text-sky-200">(Tu participación directa ayuda a este fondo)</p>
+
+              {/* CARA TRASERA DEL POOL (Total Acumulado Simulado) */}
+              <div className="energy-pool-card-face energy-pool-card-back p-6 bg-gradient-to-br from-slate-700 to-slate-900">
+                 <h3 className="text-xl font-semibold text-sky-300 mb-2 [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">Valor Estimado del Fondo</h3>
+                 <p className="text-4xl font-bold text-yellow-300 my-4 md:my-6 [text-shadow:_0_2px_4px_rgb(0_0_0_/_50%)]">
+                    ${simulatedPoolTotalValue.toLocaleString()}
+                 </p>
+                 <p className="text-xs text-slate-300 mb-3">(Valor Total Simulado de la Comunidad)</p>
+                 <p className="text-sm text-slate-100">Este fondo representa el esfuerzo colectivo.</p>
+                 <p className="text-xs text-slate-400 mt-4">(Clic para ver tus aportes)</p>
+              </div>
             </div>
           </section>
 
-          <main className="grid w-full max-w-md gap-4 md:gap-5 relative z-20">
-             {/* ... Tus botones de acción ... */}
+          <main className="grid w-full max-w-md gap-4 md:gap-5 relative z-20 mt-6 md:mt-8">
             <button type="button" onClick={() => router.push('/exchange')} 
                 className={`${baseButtonClass} bg-green-600 hover:bg-green-500 focus:ring-green-300 text-white`}>
-                Realizar Intercambio
+                Intercambio WLD/USDC
             </button>
-            <button type="button" onClick={() => router.push('/microloan/apply')} 
+            <button type="button" onClick={() => router.push('/microloand/apply')}
                 className={`${baseButtonClass} bg-blue-600 hover:bg-blue-500 focus:ring-blue-300 text-white`}>
                 Solicitar Microcrédito
             </button>
-            <button type="button" onClick={() => router.push('/survey-savings')} 
+            <button type="button" onClick={() => router.push('/survey-saving')} 
                 className={`${baseButtonClass} bg-purple-600 hover:bg-purple-500 focus:ring-purple-300 text-white`}>
-                Encuestas y Ahorro
+                Encuestas Interactivas
             </button>
           </main>
         </>
       ) : (
-        // Sección de Iniciar Sesión si no hay usuario
         <div className="w-full max-w-xs mx-auto my-16 md:my-20 p-8 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl border border-slate-200/50 relative z-20">
-           <p className="text-md text-slate-700 text-center mt-3 mb-6">
-            Conéctate con World ID para participar.
-          </p>
+           <p className="text-md text-slate-700 text-center mt-3 mb-6">Conéctate con World ID para participar.</p>
           <button
               type="button" onClick={handleSignInWithWorldID} disabled={isAuthLoading}
               className={`${baseButtonClass} bg-sky-600 hover:bg-sky-500 focus:ring-sky-300 text-white py-3`}
@@ -305,7 +274,7 @@ export default function DashboardPage() {
       )}
 
       <footer className="mt-12 text-center text-sm text-slate-500 relative z-20">
-        <p>&copy; {new Date().getFullYear()} MIcrocredito. Todos los derechos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} Tu App. Todos los derechos reservados.</p>
       </footer>
     </div>
   );
