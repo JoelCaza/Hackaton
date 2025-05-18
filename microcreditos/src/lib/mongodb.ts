@@ -2,30 +2,47 @@
 import { MongoClient, Db } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
+const MONGODB_DB = process.env.MONGODB_DB_NAME; // Cambié el nombre para evitar confusión con el cliente
 
 if (!MONGODB_URI) {
-  throw new Error('Define la variable de entorno MONGODB_URI');
-}
-if (!MONGODB_DB_NAME) {
-  throw new Error('Define la variable de entorno MONGODB_DB_NAME');
+    throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-// Caché de la conexión para evitar múltiples conexiones en desarrollo
+if (!MONGODB_DB) {
+    throw new Error('Please define the MONGODB_DB_NAME environment variable inside .env.local');
+}
+
+// En desarrollo, usamos una variable global para preservar el valor
+// a través de recargas de módulos causadas por HMR (Hot Module Replacement).
 let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;
 
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb };
-  }
+interface ConnectToDatabaseResult {
+    client: MongoClient;
+    db: Db;
+}
 
-  const client = new MongoClient(MONGODB_URI!);
-  await client.connect();
-  const db = client.db(MONGODB_DB_NAME!);
+export async function connectToDatabase(): Promise<ConnectToDatabaseResult> {
+    if (cachedClient && cachedDb) {
+        return { client: cachedClient, db: cachedDb };
+    }
 
-  cachedClient = client;
-  cachedDb = db;
+    const client = new MongoClient(MONGODB_URI!); // El ! es para asegurar a TS que no será undefined aquí debido a la validación previa
 
-  return { client, db };
+    try {
+        await client.connect();
+        console.log("Successfully connected to MongoDB Atlas.");
+        const db = client.db(MONGODB_DB!);
+
+        cachedClient = client;
+        cachedDb = db;
+
+        return { client, db };
+    } catch (e) {
+        console.error("Failed to connect to MongoDB", e);
+        // Si la conexión falla, no caches el cliente para intentar reconectar la próxima vez
+        cachedClient = null;
+        cachedDb = null;
+        throw e; // Relanza el error para que el llamador lo maneje
+    }
 }
