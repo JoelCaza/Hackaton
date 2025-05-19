@@ -24,192 +24,306 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
-/* --- Contenedor y Animación para la CARGA PRINCIPAL del Usuario (Rayo ⚡️) --- */
-@keyframes chargeAndHitBattery {
-  0% { /* Aparece arriba, centrado horizontalmente en el viewport */
-    opacity: 0;
-    transform: translateY(-50vh) translateX(-50%) scale(0.5) rotate(0deg);
-    filter: drop-shadow(0 0 5px #fef08a);
-  }
-  20% { /* Crece y brilla */
-    opacity: 1;
-    transform: translateY(-55vh) translateX(-50%) scale(2.8) rotate(-15deg);
-    filter: drop-shadow(0 0 20px #fde047);
-  }
-  30% { /* Momento de "pop" */
-    transform: translateY(-50vh) translateX(-50%) scale(2.2) rotate(5deg);
-  }
-  /* Fase de vuelo hacia el terminal de la batería */
-  /* Necesitarás ajustar los valores de translateX y translateY en 70% y 90% */
-  /* para que el rayo parezca conectar con el .battery-terminal */
-  /* Asumamos que el .battery-body está centrado y el terminal a su derecha */
-  70% {
-    opacity: 1;
-    /* Ejemplo: Si el battery-body tiene 220px de ancho, su centro está en el centro del viewport. */
-    /* El terminal estaría a +110px (mitad del cuerpo) + 5px (mitad del terminal) del centro. */
-    /* Y verticalmente, si el battery-body está a, digamos, 10vh desde el centro del viewport: */
-    transform: translateY(calc(10vh - 0px)) translateX(calc(0px + 115px)) scale(1.5) rotate(0deg); /* Ajusta estos valores */
-    filter: drop-shadow(0 0 15px #facc15);
-  }
-  90% { /* Impacto en el terminal */
-    opacity: 0.9;
-    transform: translateY(calc(10vh - 0px)) translateX(calc(0px + 125px)) scale(1.8) rotate(0deg); /* Ligeramente más adentro y más grande */
-    filter: drop-shadow(0 0 25px #fef08a);
-  }
-  100% { /* Desaparece */
-    opacity: 0;
-    transform: translateY(calc(10vh - 0px)) translateX(calc(0px + 130px)) scale(0.5) rotate(0deg);
-  }
+
+/* src/app/globals.css o similar */
+
+/* Pool de Energía */
+.energy-pool-container {
+  width: 120px; /* Ancho del contenedor del pool */
+  height: 180px; /* Alto del contenedor del pool */
+  background-color: rgba(14, 165, 233, 0.1); /* sky-500 con baja opacidad */
+  border: 3px solid rgba(56, 189, 248, 0.7); /* sky-400 */
+  border-radius: 12px; /* Bordes redondeados */
+  position: relative;
+  overflow: hidden; /* Para que el relleno no se desborde visualmente */
+  box-shadow: inset 0 0 20px rgba(14, 165, 233, 0.3), 0 0 15px rgba(56, 189, 248, 0.2);
 }
 
-.charging-animation-container {
-  position: fixed;
-  top: 0; 
-  left: 0; 
-  width: 0; 
-  height: 0;
-  z-index: 200; 
-  pointer-events: none;
-}
-
-.charging-bolt { 
-  position: absolute; 
-  display: inline-block;
-  font-size: 3rem; /* Tamaño del rayo, ajustable */
-  color: #fde047; 
-  text-shadow: 0 0 8px #facc15, 0 0 15px #fbbf24, 0 0 25px #f59e0b; 
-  animation-name: chargeAndHitBattery;
-  animation-duration: var(--contribution-animation-duration, 2.2s); /* Usa la constante del JS */
-  animation-timing-function: cubic-bezier(0.4, 0.1, 0.2, 1); /* Curva más dinámica */
-  animation-fill-mode: forwards; /* Mantiene el estado final (opacity: 0) */
-}
-
-/* --- Estilos para la BATERÍA Horizontal --- */
-.battery-card-container {
-  background-color: transparent; 
-  perspective: 1500px;
-}
-.battery-card-inner {
-  position: relative; width: 100%; height: 100%; 
-  min-height: 220px; text-align: center;
-  transition: transform 0.8s cubic-bezier(0.76, 0, 0.24, 1);
-  transform-style: preserve-3d;
-  border-radius: inherit; 
-}
-.battery-card-container.is-flipped .battery-card-inner { transform: rotateY(180deg); }
-.battery-card-front, .battery-card-back {
-  position: absolute; width: 100%; height: 100%;
-  -webkit-backface-visibility: hidden; backface-visibility: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; 
-  border-radius: inherit; 
-  /* Los fondos se aplican en el JSX con Tailwind */
-}
-.battery-card-back { transform: rotateY(180deg); }
-
-/* Cuerpo principal de la batería */
-.battery-body {
-  width: 220px; height: 100px;  
-  background-color: rgba(51, 65, 85, 0.5); /* slate-700 con opacidad */
-  border: 3px solid rgba(30, 41, 59, 0.7);   /* slate-800 */
-  border-radius: 10px; 
-  position: relative; 
-  overflow: hidden; 
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.35), 0 3px 6px rgba(0,0,0,0.18);
-  margin-bottom: 0.75rem; 
-}
-.battery-terminal { /* Terminal de la batería */
-  position: absolute; right: -12px; top: 50%;
-  transform: translateY(-50%); width: 12px; height: 40px; 
-  background-color: rgba(71, 85, 105, 0.8); /* slate-600 */
-  border-radius: 0 5px 5px 0; 
-  border: 2px solid rgba(51, 65, 85, 0.9); border-left: none;
-}
-
-/* Relleno de la batería (la carga) */
-.battery-fill {
-  position: absolute; left: 0; top: 0; height: 100%;
-  background: linear-gradient(to right, 
-    #34d399 0%,  /* green-400 */
-    #10b981 70%, /* green-500 */
-    #059669 100%  /* green-600 */
-  );
-  border-radius: 7px 0 0 7px; /* Radio interno, más pequeño que el cuerpo */
-  transition: width 1.5s cubic-bezier(0.65, 0, 0.35, 1); 
-  box-shadow: inset 0 0 8px rgba(255,255,255,0.3); 
-  overflow: hidden; /* Para el efecto de carga activa */
-}
-
-/* NUEVO: Efecto de "Carga Activa" para el .battery-fill */
-.battery-fill.is-actively-charging::after {
-  content: '';
+.energy-pool-fill {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  animation: activeChargeShimmer 1s linear infinite;
+  background: linear-gradient(to top, rgba(14, 165, 233, 0.9) 0%, rgba(56, 189, 248, 0.7) 70%, rgba(125, 211, 252, 0.5) 100%); /* Gradiente azul cielo */
+  transition: height 1.5s cubic-bezier(0.65, 0, 0.35, 1); /* Transición suave para la altura */
+  box-shadow: inset 0 -5px 10px rgba(10, 100, 150, 0.3);
+}
+
+/* Efecto de brillo en la superficie del "líquido" */
+.energy-pool-surface-glow {
+  position: absolute;
+  top: -2px; /* Ligeramente por encima para simular el borde del líquido */
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(173, 230, 255, 0.8); /* Blanco azulado brillante */
+  border-radius: 2px;
+  box-shadow: 0 0 8px 2px rgba(173, 230, 255, 0.7);
   opacity: 0.8;
 }
-@keyframes activeChargeShimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
 
-
-.battery-percentage-text { /* Texto del porcentaje DENTRO de la batería */
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%); color: white;
-  font-size: 1.6rem; /* Ajustado */ font-weight: 700; 
-  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
-  mix-blend-mode: overlay; /* 'overlay' o 'soft-light' pueden dar buen contraste */
-  opacity: 0.9;
-  z-index: 5; 
-}
-
-/* Chispas internas en el relleno de la batería (efecto ambiental sutil) */
-@keyframes batteryInternalSparkleAnim {
-  0%, 100% { opacity: 0.1; transform: scale(0.6) translateY(1px); }
-  50% { opacity: 0.5; transform: scale(1) translateY(-1px); }
-}
-.battery-internal-sparkle {
-  position: absolute; width: 4px; height: 4px;
-  background-color: rgba(200, 255, 200, 0.7); /* Verde muy claro */
-  border-radius: 50%;
-  box-shadow: 0 0 2px 1px rgba(200, 255, 200, 0.6);
-  animation-name: batteryInternalSparkleAnim;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-  z-index: 2; 
-}
-
-
-/* Pequeñas cargas ambientales entrando a la batería */
-@keyframes otherSmallChargesEnterBattery {
-  0% { opacity: 0; transform: translateX(-40px) scale(0.5); }
-  30% { opacity: 0.6; }
-  70% { opacity: 0.6; transform: translateX(230px) scale(0.7); } /* Ajusta el X para que llegue al terminal */
-  100% { opacity: 0; transform: translateX(250px) scale(0.3); } 
-}
-.other-contribution-spark { 
+/* Marcas de nivel en el pool (opcional) */
+.energy-pool-markings {
   position: absolute;
-  top: calc(var(--random-top, 50) * 1%); /* Necesitarás pasar --random-top como variable CSS desde JS */
-  left: 0; /* La animación controla el X */
-  width: 6px; height: 6px;
-  background-color: rgba(135, 206, 250, 0.5); 
-  border-radius: 2px; 
-  box-shadow: 0 0 3px 1px rgba(135, 206, 250, 0.4);
-  animation-name: otherSmallChargesEnterBattery;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  z-index: 5; 
+  top: 0;
+  right: -30px; /* Fuera del contenedor principal */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: rgba(14, 165, 233, 0.8);
+  padding: 5px 0;
+}
+.energy-pool-markings span {
+  display: block;
 }
 
-/* Pulso para el overlay de la tarjeta del pool */
-@keyframes pulseStrongEffectOverlay { /* Reusado del anterior */ }
-.animate-pulse-strong {  animation: pulseStrongEffectOverlay 0.8s cubic-bezier(0.4, 0, 0.6, 1) 1; }
+
+/* Chispa de Energía que vuela hacia el pool */
+@keyframes flyAndMergeSpark {
+  0% {
+    opacity: 0;
+    /* Empieza desde arriba y un poco a la izquierda */
+    transform: translate(-80vw, -70vh) scale(0.3) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-20vw, -30vh) scale(1.5) rotate(90deg); /* Vuela hacia el centro */
+  }
+  /* Punto donde se acerca al pool (ajustar coordenadas si el pool no está centrado en viewport) */
+  70% {
+    opacity: 1;
+    /* Estos valores intentan apuntar al centro del .energy-pool-container */
+    /* Como .flying-energy-spark es hijo del body (o un contenedor fixed/absolute), */
+    /* sus transformaciones son relativas a ese contexto. */
+    /* Asumiendo que el pool está aproximadamente centrado y algo abajo: */
+    transform: translate(0vw, 10vh) scale(1) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    /* "Entra" en el pool y desaparece */
+    transform: translate(0vw, 20vh) scale(0.2) rotate(270deg);
+  }
+}
+
+.flying-energy-spark {
+  position: fixed; /* Fijo en el viewport para la animación */
+  top: 0; /* Controlado por transform */
+  left: 0; /* Controlado por transform */
+  
+  font-size: 2.5rem; /* Tamaño del emoji de chispa */
+  text-shadow: 0 0 10px gold, 0 0 20px orange;
+  
+  z-index: 100; /* Encima de todo durante la animación */
+  
+  /* Aplicar la animación */
+  animation: flyAndMergeSpark var(--contribution-animation-duration, 1.8s) cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+/* Para pasar la duración desde JS (ya está en constante arriba) */
+:root {
+  --contribution-animation-duration: 1.8s; 
+}
+
+/* --- ESTILOS MODIFICADOS PARA LA ANIMACIÓN DE LA ESTRELLA Y EL POOL --- */
+
+/* Chispa de Energía que vuela hacia el pool - MODIFICADA */
+@keyframes flyAndMergeSpark {
+  0% {
+    opacity: 0;
+    /* Comienza más lejos y más arriba para un barrido amplio */
+    transform: translate(-70vw, -80vh) scale(0.2) rotate(-90deg);
+  }
+  20% {
+    opacity: 0.8; /* Aparece gradualmente */
+    /* Se mueve hacia una posición intermedia, aún fuera del centro */
+    transform: translate(-20vw, -40vh) scale(1.2) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    /* Vuela hacia el centro horizontal, pero aún alto, haciéndose más grande */
+    transform: translate(0vw, -25vh) scale(2) rotate(90deg); /* Aumentado el scale aquí */
+  }
+  80% {
+    opacity: 1;
+    /* Se acerca al área del pool comunitario.
+       Ajusta translateY si tu pool está más arriba o abajo.
+       0vw para X lo mantiene centrado horizontalmente.
+       Un Y positivo lo baja en la pantalla. */
+    transform: translate(0vw, 20vh) scale(1.5) rotate(180deg); /* Reducido un poco el scale al acercarse */
+  }
+  100% {
+    opacity: 0;
+    /* "Entra" en el pool (un poco más abajo) y desaparece encogiéndose */
+    transform: translate(0vw, 25vh) scale(0.1) rotate(270deg);
+  }
+}
+
+.flying-energy-spark {
+  position: fixed; /* Fijo en el viewport para la animación global */
+  top: 0; /* La posición real se controla con transform */
+  left: 0; /* La posición real se controla con transform */
+  
+  font-size: 4.5rem; /* Estrella considerablemente más grande */
+  color: white; /* Para asegurar que el emoji ✨ se renderice consistentemente si es un carácter */
+  text-shadow: 0 0 18px gold, 0 0 35px orange, 0 0 8px rgba(255, 165, 0, 0.7); /* Sombra más intensa */
+  
+  z-index: 1000; /* Muy alto para estar encima de casi todo durante la animación */
+  
+  /* Aplicar la animación */
+  animation: flyAndMergeSpark var(--contribution-animation-duration) cubic-bezier(0.4, 0.1, 0.6, 0.9) forwards; /* Ajustada la curva Bezier para un movimiento fluido */
+  pointer-events: none; /* Para que no capture eventos del mouse */
+}
+
+
+/* Estilos para el Pool de Energía (tomando las últimas definiciones que proporcionaste) */
+.energy-pool-container {
+  width: 100px; 
+  height: 150px;
+  background-color: rgba(14, 116, 144, 0.2); /* sky-700 con baja opacidad */
+  border: 2px solid rgba(56, 189, 248, 0.6); /* sky-400 */
+  border-radius: 10px 10px 60px 60px / 10px 10px 20px 20px; /* Forma de "vaso" más sutil */
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 15px rgba(14, 165, 233, 0.25), 0 4px 10px rgba(0,0,0,0.1);
+  margin-left: auto; /* Para centrarlo si su padre es flex/grid o tiene text-align:center */
+  margin-right: auto; /* Para centrarlo */
+}
+
+.energy-pool-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, 
+    rgba(14, 165, 233, 0.95) 0%,  /* sky-600 */
+    rgba(56, 189, 248, 0.85) 60%, /* sky-400 */
+    rgba(125, 211, 252, 0.7) 100% /* sky-300 */
+  );
+  transition: height 1.5s cubic-bezier(0.65, 0, 0.35, 1);
+  box-shadow: inset 0 -3px 8px rgba(10, 100, 150, 0.2);
+}
+
+.energy-pool-surface-glow {
+  position: absolute;
+  top: -1px; 
+  left: -5%; 
+  width: 110%;
+  height: 3px;
+  background-color: rgba(224, 242, 254, 0.9); /* sky-100, más brillante */
+  border-radius: 50%; 
+  box-shadow: 0 0 10px 3px rgba(173, 230, 255, 0.8); 
+  opacity: 0.9;
+  filter: blur(1px);
+}
+
+.energy-pool-markings {
+  position: absolute;
+  top: 0;
+  right: -20px; 
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.6rem; 
+  color: rgba(255, 255, 255, 0.7); 
+  padding: 2px 0;
+  text-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+.energy-pool-markings span:last-child { /* "MAX" */
+  position: absolute;
+  top: -4px; 
+}
+
+/* Efecto de pulso para el contenedor del pool al recibir contribución directa */
+@keyframes pulseStrongOnce {
+  0% { transform: scale(1); /* Usaremos el overlay para el brillo, no el transform aquí */ }
+  50% { transform: scale(1.03); /* Ligero scale al contenedor si se desea */ }
+  100% { transform: scale(1); }
+}
+/* La clase .animate-pulse-strong en el JSX está en un div overlay,
+   así que su animación debería afectar el brillo de ese overlay, no el scale del pool.
+   Si quieres que el pool escale, aplica la animación directamente al .energy-pool-container
+   o a la section#energy-pool-section.
+   El `box-shadow` para el pulso puede ir en el overlay también.
+   Si el `div` con `animate-pulse-strong` es el overlay con `bg-sky-300`,
+   podemos hacer que su opacidad pulse o su tamaño.
+   La clase .animate-pulse-strong ya la tenías en el JSX con esta animación:
+   <div className={`absolute inset-0 bg-sky-300 transition-opacity duration-700 ease-out ${pulsePool ? 'opacity-20 animate-pulse-strong' : 'opacity-0'}`}></div>
+   La animación pulseStrongOnce que definiste afecta transform y box-shadow.
+   Para un overlay, es mejor afectar opacidad o un brillo específico del overlay.
+*/
+@keyframes overlayPulse {
+  0%, 100% { opacity: 0; box-shadow: 0 0 20px 10px rgba(125, 211, 252, 0); }
+  50% { opacity: 0.25; box-shadow: 0 0 40px 20px rgba(125, 211, 252, 0.7); }
+}
+.animate-pulse-strong { /* Esta clase se aplica al overlay */
+  animation: overlayPulse 0.8s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+
+/* Partículas para el efecto ambiental del pool */
+@keyframes driftAndFadeParticle {
+  0% { transform: translateY(0px) scale(1); opacity: 0; }
+  20%, 80% { opacity: 1; } 
+  100% { transform: translateY(-180px) scale(0.3); opacity: 0; } 
+}
+
+.pool-particle {
+  position: absolute;
+  bottom: 5%; 
+  background-color: rgba(173, 230, 252, 0.6); 
+  border-radius: 50%;
+  animation-name: driftAndFadeParticle;
+  animation-timing-function: linear; 
+  animation-iteration-count: infinite;
+  box-shadow: 0 0 5px rgba(173, 230, 252, 0.5); 
+}
+/* --- ESTILOS PARA LA TARJETA GIRATORIA --- */
+.flip-card-container {
+  perspective: 1200px; /* Aumenta la perspectiva para un efecto 3D más notable */
+  width: 100%; /* Ocupa el ancho disponible, limitado por max-w-md en el JSX */
+  /* La altura se adaptará al contenido de las caras, asegúrate que ambas caras tengan una altura definida o similar */
+}
+
+.flip-card {
+  width: 100%;
+  height: 100%; /* Asegura que el contenedor interno ocupe todo el espacio del flip-card-container si este tiene altura definida */
+  min-height: 380px; /* Establece una altura mínima para la tarjeta para asegurar espacio para el contenido */
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.3, 1.2, 0.7, 1); /* Transición más elástica */
+  cursor: pointer;
+}
+
+.flip-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.flip-card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden; /* Oculta la cara trasera cuando no está visible */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around; /* Distribuye mejor el contenido verticalmente */
+  border-radius: 1.5rem; /* rounded-3xl como en el JSX */
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); /* shadow-2xl o similar más pronunciada */
+  overflow: hidden; /* Importante para bordes redondeados y gradientes */
+  padding: 1.5rem; /* sm:p-8 en JSX, ajusta según necesidad */
+}
+
+.flip-card-front {
+  /* El fondo y otros estilos se aplican directamente en el JSX con clases de Tailwind */
+  /* e.g., bg-gradient-to-br from-sky-600 to-blue-700 */
+  z-index: 2; /* Asegura que la cara frontal esté inicialmente visible */
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+  /* El fondo se aplica en el JSX, e.g., bg-gradient-to-br from-blue-700 to-sky-500 */
+  color: white;
+  z-index: 1;
+}

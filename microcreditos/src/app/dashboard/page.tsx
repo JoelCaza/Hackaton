@@ -1,35 +1,73 @@
+// src/app/dashboard/page.tsx
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import * as React from 'react';
-// Importaciones de MiniKit para el flujo de login SIWE en esta página
+import * as React from 'react'; // React completo para hooks
 import {
   MiniKit,
   WalletAuthInput,
   MiniAppWalletAuthSuccessPayload,
   MiniAppWalletAuthErrorPayload,
 } from '@worldcoin/minikit-js';
+import Image from 'next/image';
 
-// Interfaz para la información del usuario
+// --- Interfaz de Usuario ---
 interface UserInfo {
   address: string;
   username: string | null;
 }
 
-// Componente Placeholder para el Avatar
-const UserAvatarPlaceholder = ({ className }: { className?: string }) => (
-  <div className={`bg-slate-300 rounded-full flex items-center justify-center overflow-hidden ${className || "w-24 h-24"}`}>
-    <svg className="w-3/4 h-3/4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
-    </svg>
+// --- Placeholder de Avatar de Usuario Mejorado ---
+const UserAvatarPlaceholder = ({ className, initial }: { className?: string, initial?: string }) => (
+  <div className={`bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center overflow-hidden ${className || "w-24 h-24"} shadow-md`}>
+    {initial ? (
+      // Eliminada la clase [text-shadow:...] que causaba errores de TypeScript
+      <span className="text-3xl md:text-4xl font-semibold text-white">{initial}</span>
+    ) : (
+      <svg className="w-3/4 h-3/4 text-sky-100/80" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
+      </svg>
+    )}
   </div>
 );
 
-// Constantes para la visualización y animación del pool
+// --- Constantes ---
 const TARGET_CONTRIBUTIONS_FOR_FULL_VISUAL = 50;
-const CONTRIBUTION_ANIMATION_DURATION = 2200; // ms - Duración animación chispa principal
-const USER_INFO_LOCALSTORAGE_KEY = "worldIdUserInfo"; // Key de tu código
-const POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY = "poolContributionsCountV2"; // Key de tu código
+const CONTRIBUTION_ANIMATION_DURATION = 1800;
+const USER_INFO_LOCALSTORAGE_KEY = "worldIdUserInfo";
+const POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY = "poolContributionsCountV2";
+
+// --- Iconos Placeholder ---
+const ExchangeIcon = ({ className = "w-10 h-10 sm:w-12 sm:h-12 text-current" }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h18m-7.5-14L21 7.5m0 0L16.5 12M21 7.5H3" />
+  </svg>
+);
+const MicroloanIcon = ({ className = "w-10 h-10 sm:w-12 sm:h-12 text-current" }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0H21m-9 12.75h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V10.5zm0 2.25h.008v.008h-.008v-.008zM4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+  </svg>
+);
+const SurveyIcon = ({ className = "w-10 h-10 sm:w-12 sm:h-12 text-current" }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25c.621 0 1.125.504 1.125 1.125v3.375c0 .621-.504 1.125-1.125 1.125h-1.5c-.621 0-1.125-.504-1.125-1.125v-3.375c0-.621.504-1.125 1.125-1.125h1.5zM17.25 10.5h.008v.008h-.008V10.5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.875 2.25c.621 0 1.125.504 1.125 1.125v3.375c0 .621-.504 1.125-1.125 1.125h-1.5c-.621 0-1.125-.504-1.125-1.125V3.375c0-.621.504-1.125 1.125-1.125h1.5Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 15h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008ZM10.5 15h.008v.008H10.5V15Zm0 2.25h.008v.008H10.5v-.008Zm0 2.25h.008v.008H10.5v-.008Z" />
+  </svg>
+);
+const WorldIdIcon = ({className = "w-6 h-6"} : {className?: string}) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+    </svg>
+);
+
+// --- Definición de Acciones para el Carrusel (Rutas Corregidas) ---
+const actions = [
+  { id: 'exchange', title: 'Intercambios', description: 'Gestiona activos y explora nuevas oportunidades.', icon: <ExchangeIcon />, gradientFrom: 'from-green-500', gradientTo: 'to-green-700', hoverGradientFrom: 'hover:from-green-600', hoverGradientTo: 'hover:to-green-800', ringColor: 'focus:ring-green-400', path: '/exchange', textColor: 'text-white'},
+  { id: 'microloan', title: 'Microcréditos', description: 'Accede a financiación rápida para tus proyectos.', icon: <MicroloanIcon />, gradientFrom: 'from-blue-500', gradientTo: 'to-blue-700', hoverGradientFrom: 'hover:from-blue-600', hoverGradientTo: 'hover:to-blue-800', ringColor: 'focus:ring-blue-400', path: '/microloand/apply', textColor: 'text-white'},
+  { id: 'survey', title: 'Encuestas y Ahorro', description: 'Participa y obtén recompensas.', icon: <SurveyIcon />, gradientFrom: 'from-purple-500', gradientTo: 'to-purple-700', hoverGradientFrom: 'hover:from-purple-600', hoverGradientTo: 'hover:to-purple-800', ringColor: 'focus:ring-purple-400', path: '/survey-saving', textColor: 'text-white'},
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -44,237 +82,203 @@ export default function DashboardPage() {
   const [animationTriggerKey, setAnimationTriggerKey] = React.useState(0);
   const [poolContributionsCount, setPoolContributionsCount] = React.useState(0);
   const [pulsePool, setPulsePool] = React.useState(false);
-
-  // Estados para el flip del pool de energía
-  const [isPoolFlipped, setIsPoolFlipped] = React.useState(false);
-  const [simulatedPoolTotalValue, setSimulatedPoolTotalValue] = React.useState<number>(12345.67);
-
+  const [isPoolCardFlipped, setIsPoolCardFlipped] = React.useState(false);
 
   React.useEffect(() => {
-    console.log("Dashboard [Mount]: Leyendo de localStorage con clave:", POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY);
     const savedContributions = parseInt(localStorage.getItem(POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY) || '0', 10);
     setPoolContributionsCount(savedContributions);
-    console.log("Dashboard [Mount]: Contribuciones iniciales cargadas:", savedContributions);
-
     const storedUser = localStorage.getItem(USER_INFO_LOCALSTORAGE_KEY);
     if (storedUser) {
       try { setUserInfo(JSON.parse(storedUser)); }
-      catch (e) { localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY); }
+      catch (e) { console.error("Error parsing user info", e); localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY); }
     }
     setIsLoadingUserInfo(false);
   }, []);
 
   React.useEffect(() => {
-    const contributionParam = searchParams.get('contribution');
-    if (contributionParam === 'true') {
-      setAnimateNewContribution(true); 
+    if (searchParams.get('contribution') === 'true') {
+      setAnimateNewContribution(true);
       setAnimationTriggerKey(prevKey => prevKey + 1);
       const updatedContributions = parseInt(localStorage.getItem(POOL_CONTRIBUTIONS_LOCALSTORAGE_KEY) || '0', 10);
       setPoolContributionsCount(updatedContributions);
-      setPulsePool(true); 
+      setPulsePool(true);
+      setIsPoolCardFlipped(false); 
+
       const currentPath = window.location.pathname;
       window.history.replaceState({ ...window.history.state, as: currentPath, url: currentPath }, '', currentPath);
-      
-      const animationClearTimer = setTimeout(() => setAnimateNewContribution(false), CONTRIBUTION_ANIMATION_DURATION);
-      const pulseTimer = setTimeout(() => setPulsePool(false), 1200); 
-      return () => { clearTimeout(animationClearTimer); clearTimeout(pulseTimer); };
+      const animationTimer = setTimeout(() => setAnimateNewContribution(false), CONTRIBUTION_ANIMATION_DURATION);
+      const pulseTimer = setTimeout(() => setPulsePool(false), 800);
+      return () => { clearTimeout(animationTimer); clearTimeout(pulseTimer); };
     }
   }, [searchParams]);
 
   const poolFillPercentage = Math.min((poolContributionsCount / TARGET_CONTRIBUTIONS_FOR_FULL_VISUAL) * 100, 100);
 
-  // --- FUNCIÓN DE INICIO DE SESIÓN CON WORLD ID MINIKIT (SIWE) ---
-  // ** DEBES COMPLETAR ESTA FUNCIÓN CON TU LÓGICA REAL DE MINIKIT Y LLAMADAS A TUS ENDPOINTS /api/nonce y /api/complete-siwe **
   const handleSignInWithWorldID = async () => {
-    setIsAuthLoading(true);
-    setAuthError(null);
+    setIsAuthLoading(true); setAuthError(null);
     if (typeof window !== 'undefined' && !MiniKit.isInstalled()) {
       setAuthError('World App no está instalado o MiniKit no está disponible.');
-      setIsAuthLoading(false); alert('Asegúrate de tener World App instalado.'); return;
+      setIsAuthLoading(false); alert('Por favor, asegúrate de tener World App instalado.'); return;
     }
     try {
-      console.log("Dashboard: Solicitando nonce para SIWE...");
-      const nonceRes = await fetch('/api/nonce'); // TU ENDPOINT
-      if (!nonceRes.ok) { throw new Error((await nonceRes.json().catch(()=>({}))).message || 'Error al obtener nonce.'); }
-      const { nonce } = await nonceRes.json();
-      if (!nonce) throw new Error('Nonce inválido.');
-      
-      const authRequest: WalletAuthInput = { nonce, statement: 'Inicia sesión en la plataforma.' };
+      const nonceRes = await fetch('/api/nonce');
+      if (!nonceRes.ok) { const errD = await nonceRes.json().catch(()=>({message: 'Error al obtener nonce.'})); throw new Error(errD.message);}
+      const { nonce } = await nonceRes.json(); if (!nonce) throw new Error('Nonce inválido.');
+      const authRequest: WalletAuthInput = { nonce, statement: 'Inicia sesión en la plataforma con tu World ID.' };
       const { finalPayload } = await MiniKit.commandsAsync.walletAuth(authRequest);
-
-      if (finalPayload.status === 'error') {
-        const errP = finalPayload as MiniAppWalletAuthErrorPayload;
-        throw new Error((errP as any)?.detail || (errP as any)?.message || `Error de Autenticación (Código: ${(errP as any)?.code})`);
-      }
-      const successPayload = finalPayload as MiniAppWalletAuthSuccessPayload;
-      
-      const verifyRes = await fetch('/api/complete-siwe', { // TU ENDPOINT
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: successPayload, nonce, username: MiniKit.user?.username || null }),
-      });
-      const verificationResult = await verifyRes.json();
-      if (!verifyRes.ok || !verificationResult.isValid) { throw new Error(verificationResult.message || 'Verificación SIWE fallida.'); }
-
-      const authenticatedUserInfo: UserInfo = { address: successPayload.address, username: MiniKit.user?.username || null };
-      setUserInfo(authenticatedUserInfo);
-      localStorage.setItem(USER_INFO_LOCALSTORAGE_KEY, JSON.stringify(authenticatedUserInfo));
-      setAuthError(null);
-      console.log("Dashboard: Usuario autenticado (SIWE) y sesión guardada en localStorage:", authenticatedUserInfo);
-      // Si usas NextAuth, aquí llamarías a signIn()
-    } catch (err: any) {
-      setAuthError(err.message || 'Error en inicio de sesión.');
-      setUserInfo(null); localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
-    } finally {
-      setIsAuthLoading(false);
-    }
+      if (finalPayload.status === 'error') { const eP = finalPayload as MiniAppWalletAuthErrorPayload; throw new Error((eP as any)?.detail || (eP as any)?.message || 'Error de Autenticación.');}
+      const sP = finalPayload as MiniAppWalletAuthSuccessPayload;
+      if (!sP.address) throw new Error("No se pudo obtener la dirección.");
+      const verifyRes = await fetch('/api/complete-siwe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload: sP, nonce, username: MiniKit.user?.username || null })});
+      const vBR = await verifyRes.json(); if (!verifyRes.ok || !vBR.isValid) { throw new Error(vBR.message || 'Verificación SIWE falló.');}
+      const authUserInfo: UserInfo = { address: sP.address, username: MiniKit.user?.username || null };
+      setUserInfo(authUserInfo); localStorage.setItem(USER_INFO_LOCALSTORAGE_KEY, JSON.stringify(authUserInfo)); setAuthError(null);
+    } catch (err: any) { console.error('Error en SignIn:', err); setAuthError(err.message || 'Error desconocido.'); setUserInfo(null); localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
+    } finally { setIsAuthLoading(false); }
   };
 
   const handleSignOut = () => {
     localStorage.removeItem(USER_INFO_LOCALSTORAGE_KEY);
     setUserInfo(null);
-    router.push('/'); 
-  };
-  
-  const handlePoolClick = () => {
-    setIsPoolFlipped(!isPoolFlipped);
-    if (!isPoolFlipped) { 
-        setSimulatedPoolTotalValue(parseFloat((poolContributionsCount * 12.34 + 4321 + Math.random() * 600).toFixed(2)));
-    }
+    router.push('/');
   };
 
-  const baseButtonClass = "w-full px-6 py-3 text-base md:text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 transform transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-md disabled:hover:scale-100";
+  const togglePoolCardFlip = () => setIsPoolCardFlipped(!isPoolCardFlipped);
 
   if (isLoadingUserInfo) {
-    return <div className="flex justify-center items-center min-h-screen bg-slate-100"><p className="text-slate-700 animate-pulse">Cargando Dashboard...</p></div>;
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen bg-gradient-to-br from-slate-100 via-sky-50 to-slate-100 p-4 animate-fadeIn">
+        <div className="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sky-700 mt-5 text-lg font-medium">Cargando tu espacio...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-100 via-sky-50 to-slate-100 text-slate-800 relative overflow-hidden">
-      
-      {/* Chispa de energía del APORTE DEL USUARIO ACTUAL (más grande y centrada al inicio) */}
-      {animateNewContribution && userInfo && (
-        <div 
-            key={animationTriggerKey} 
-            // Este div es el contenedor para posicionar la animación inicial de la chispa
-            className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none" 
-        >
-          <div className="flying-energy-spark">✨</div> {/* La chispa que se anima */}
-        </div>
-      )}
+    <div className="flex flex-col items-center min-h-screen pt-8 pb-12 md:pt-12 md:pb-16 px-4 bg-gradient-to-br from-slate-100 via-sky-50 to-slate-100 text-slate-800 relative selection:bg-sky-200 selection:text-sky-800">
+      {/* Los estilos para .flip-card-* y animaciones deben estar en globals.css */}
 
-      <header className="mb-6 md:mb-8 text-center w-full max-w-md relative z-20">
-        <h1 className="text-4xl md:text-5xl font-bold text-sky-700 [text-shadow:_0_2px_2px_rgb(255_255_255_/_70%)]">
-          Dashboard Principal
-        </h1>
-        {authError && <p className="text-red-600 mt-2 text-sm bg-red-100 px-3 py-1 rounded-md shadow">{authError}</p>}
-      </header>
+      {animateNewContribution && userInfo && (
+        <div key={animationTriggerKey} className="flying-energy-spark">✨</div>
+      )}
 
       {userInfo ? (
         <>
-          {/* Tarjeta de Usuario */}
-          <div className="mb-6 md:mb-8 bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/50 relative z-20">
-            <UserAvatarPlaceholder className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 border-4 border-white shadow-lg" />
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate text-center">
-              {userInfo.username || 'Usuario Verificado'}
-            </h2>
-            <p className="text-xs md:text-sm text-slate-500 break-all mt-1 mb-5 text-center">
-              {userInfo.address}
-            </p>
-            <button
-              type="button" onClick={handleSignOut} disabled={isAuthLoading}
-              className="w-full max-w-xs mx-auto px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:ring-4 focus:ring-red-300 rounded-lg shadow-md"
-            >
-              {isAuthLoading && userInfo ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
+          <div className="mb-8 md:mb-10 bg-white/80 backdrop-blur-lg p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200/60 relative z-20 animate-fadeIn">
+            <UserAvatarPlaceholder 
+                className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-5 border-4 border-white shadow-lg" 
+                initial={(userInfo.username || (userInfo.address ? userInfo.address[2] : '') || 'U').toUpperCase()} 
+            />
+            <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-cyan-500 text-center mb-1">{userInfo.username || 'Usuario Verificado'}</h2>
+            <p className="text-xs md:text-sm text-slate-500/90 break-all mt-0 mb-6 text-center px-2">{userInfo.address}</p>
+            <button type="button" onClick={handleSignOut} disabled={isAuthLoading}
+              className="w-full max-w-xs mx-auto px-4 py-2.5 text-sm font-medium text-red-600 bg-red-100 hover:bg-red-200 focus:ring-4 focus:ring-red-300/50 rounded-lg shadow-md hover:shadow-lg transition-all duration-150">
+              {isAuthLoading ? 'Cerrando...' : 'Cerrar Sesión'}
             </button>
           </div>
 
-          {/* Sección Visible del Pool de "Energía" (Vertical) - INTERACTIVO (FLIP) */}
-          <section 
-            id="energy-pool-section"
-            onClick={handlePoolClick}
-            className={`w-full max-w-xs sm:max-w-sm my-4 md:my-6 rounded-2xl shadow-xl text-center relative overflow-hidden border-4 border-sky-400/50 z-10 cursor-pointer group energy-pool-card-container ${isPoolFlipped ? 'is-flipped' : ''}`}
-            // El fondo se aplica a las caras para permitir el flip
+          {/* --- TARJETA GIRATORIA FONDO COMUNITARIO --- */}
+          <div 
+            className="flip-card-container my-6 md:my-8" 
+            onClick={togglePoolCardFlip} 
+            role="button" 
+            tabIndex={0} 
+            onKeyPress={(e) => {if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePoolCardFlip();}}}
+            aria-pressed={isPoolCardFlipped}
+            aria-label="Tarjeta del Fondo Comunitario, tocar para ver detalles del total de aportes"
           >
-            <div className="energy-pool-flip-inner"> {/* Para la animación de flip */}
-              {/* CARA FRONTAL DEL POOL (Nivel de llenado) */}
-              <div className="energy-pool-card-face energy-pool-card-front p-6 bg-gradient-to-br from-sky-500 to-sky-700">
-                <div className={`absolute inset-0 bg-white/20 transition-all duration-500 ease-out ${pulsePool ? 'opacity-100 scale-110 animate-pulse-strong' : 'opacity-0 scale-100'}`}></div>
-                
-                {/* Pequeñas cargas ambientales */}
-                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none rounded-xl">
-                    {Array.from({length: 7}).map((_,i) =>( // Pequeñas chispas ambientales
-                        <div key={`other-user-charge-${i}`} className="other-user-ambient-charge" style={{
-                            left: `${5 + Math.random()*90}%`, 
-                            animationDelay: `${Math.random() * 6 + i * 0.3}s`, 
-                            animationDuration: `${Math.random() * 5 + 5}s` 
-                        }}></div>
-                    ))}
+            <div className={`flip-card ${isPoolCardFlipped ? 'is-flipped' : ''}`}>
+              {/* Cara Frontal: Visualización del Pool */}
+              <div className="flip-card-face flip-card-front bg-gradient-to-br from-sky-600 to-blue-700 p-6 sm:p-8 text-center relative border-2 border-sky-400/30">
+                <div className={`absolute inset-0 bg-sky-300 transition-opacity duration-700 ease-out ${pulsePool ? 'opacity-20 animate-pulse-strong' : 'opacity-0'}`}></div>
+                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                  {Array.from({length: 15}).map((_,i) => (
+                    <div key={`particle-${i}`} className="pool-particle" style={{left: `${Math.random()*100}%`, animationDelay: `${Math.random()*5}s`, animationDuration: `${Math.random()*10 + 10}s`, width: `${Math.random()*3+1}px`, height: `${Math.random()*3+1}px`, opacity: Math.random() * 0.3 + 0.1 }}></div>
+                  ))}
                 </div>
-
-                <div className="relative z-10"> {/* Contenido del pool */}
-                  <h3 className="text-2xl font-semibold text-white mb-2 [text-shadow:_0_1px_2px_rgb(0_0_0_/_40%)]">Fondo Comunitario</h3>
-                  <p className="text-sm text-sky-100 mb-5 [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">Energía Colectiva</p>
-                  <div className="energy-pool-visual-container mx-auto">
-                    <div className="energy-pool-fill" style={{ 
-                      height: `${poolFillPercentage}%`,
-                      backgroundColor: `hsl(${180 + poolFillPercentage * 0.6}, 70%, ${50 + poolFillPercentage * 0.1}%)` 
-                    }}>
-                      <div className="energy-pool-surface-glow"></div>
+                <div className="relative z-10 flex flex-col justify-around h-full">
+                    <div className="pt-2">
+                        <h3 className="text-2xl sm:text-3xl font-bold text-white">Fondo Comunitario</h3>
+                        <p className="text-sm sm:text-base text-sky-100 mt-1 mb-4">Creciendo con cada aporte.</p>
                     </div>
-                    <div className="energy-pool-markings">
-                        <span>0%</span> {/* Texto directo para 0% */}
-                        <span>MAX</span>
+                    <div className="energy-pool-container mx-auto my-2">
+                        <div className="energy-pool-fill" style={{ height: `${poolFillPercentage}%` }}>
+                            <div className="energy-pool-surface-glow"></div>
+                        </div>
+                        <div className="energy-pool-markings"><span></span><span>MAX</span></div>
                     </div>
-                  </div>
-                  <p className="text-lg text-white mt-5 font-bold [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">
-                    {poolContributionsCount.toLocaleString()} Aportes del Usuario
-                  </p>
-                  <p className="text-xs text-sky-200">(Clic para ver valor total)</p>
+                    <p className="text-lg sm:text-xl text-white mt-4 font-bold">{poolContributionsCount.toLocaleString()} Aportes Actuales</p>
+                    <p className="text-xs text-sky-200/90 mt-2 pb-2">(Toca la tarjeta para ver el total)</p>
                 </div>
               </div>
 
-              {/* CARA TRASERA DEL POOL (Total Acumulado Simulado) */}
-              <div className="energy-pool-card-face energy-pool-card-back p-6 bg-gradient-to-br from-slate-700 to-slate-900">
-                 <h3 className="text-xl font-semibold text-sky-300 mb-2 [text-shadow:_0_1px_1px_rgb(0_0_0_/_30%)]">Valor Estimado del Fondo</h3>
-                 <p className="text-4xl font-bold text-yellow-300 my-4 md:my-6 [text-shadow:_0_2px_4px_rgb(0_0_0_/_50%)]">
-                    ${simulatedPoolTotalValue.toLocaleString()}
-                 </p>
-                 <p className="text-xs text-slate-300 mb-3">(Valor Total Simulado de la Comunidad)</p>
-                 <p className="text-sm text-slate-100">Este fondo representa el esfuerzo colectivo.</p>
-                 <p className="text-xs text-slate-400 mt-4">(Clic para ver tus aportes)</p>
+              {/* Cara Trasera: Detalles del Pool */}
+              <div className="flip-card-face flip-card-back bg-gradient-to-br from-blue-700 to-sky-500 p-6 sm:p-8 text-center flex flex-col justify-center items-center">
+                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-3">Total del Fondo</h3>
+                <div className="my-4">
+                  <span className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-yellow-300" style={{textShadow: '0 0 15px rgba(253, 224, 71, 0.7), 0 0 5px rgba(253, 224, 71, 0.5)'}}>
+                    {poolContributionsCount.toLocaleString()}
+                  </span>
+                  <span className="block text-xl sm:text-2xl text-sky-100 mt-2">Aportes Comunitarios</span>
+                </div>
+                <p className="text-sm text-sky-200/80 mt-4">(Toca para volver a la visualización)</p>
               </div>
             </div>
-          </section>
+          </div>
+          {/* --- FIN TARJETA GIRATORIA --- */}
 
-          <main className="grid w-full max-w-md gap-4 md:gap-5 relative z-20 mt-6 md:mt-8">
-            <button type="button" onClick={() => router.push('/exchange')} 
-                className={`${baseButtonClass} bg-green-600 hover:bg-green-500 focus:ring-green-300 text-white`}>
-                Intercambio WLD/USDC
-            </button>
-            <button type="button" onClick={() => router.push('/microloand/apply')}
-                className={`${baseButtonClass} bg-blue-600 hover:bg-blue-500 focus:ring-blue-300 text-white`}>
-                Solicitar Microcrédito
-            </button>
-            <button type="button" onClick={() => router.push('/survey-saving')} 
-                className={`${baseButtonClass} bg-purple-600 hover:bg-purple-500 focus:ring-purple-300 text-white`}>
-                Encuestas Interactivas
-            </button>
+          <main className="w-full max-w-md mx-auto relative z-20 mt-10 md:mt-12 animate-fadeIn">
+            <h3 className="text-2xl sm:text-3xl font-semibold text-slate-700 mb-4 md:mb-6 px-1 text-left">Acciones Rápidas</h3>
+            <div className="flex overflow-x-auto py-2 pb-6 space-x-4 sm:space-x-5 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-sky-400/60 scrollbar-track-sky-100 scrollbar-thumb-rounded-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="snap-start shrink-0 w-1 h-1 md:w-0"></div>
+              {actions.map((action) => (
+                <div key={action.id} onClick={() => router.push(action.path)} onKeyPress={(e) => {if (e.key === 'Enter' || e.key === ' ') router.push(action.path);}} tabIndex={0} role="button"
+                  className={`group ${action.textColor} bg-gradient-to-br ${action.gradientFrom} ${action.gradientTo} ${action.hoverGradientFrom} ${action.hoverGradientTo} snap-center shrink-0 w-[70vw] xs:w-[65vw] sm:w-[250px] md:w-[230px] h-60 sm:h-64 md:h-[270px] rounded-2xl shadow-xl hover:shadow-2xl p-5 sm:p-6 flex flex-col items-center justify-between text-center transition-all duration-300 ease-in-out transform hover:-translate-y-1.5 focus:outline-none focus:ring-4 ${action.ringColor} focus:ring-opacity-70 cursor-pointer`}>
+                  <div className="flex flex-col items-center">
+                    <div className="mb-3 sm:mb-4 p-3 sm:p-3.5 rounded-full bg-white/15 shadow">{action.icon}</div>
+                    <h4 className="text-lg sm:text-xl font-semibold mb-1 sm:mb-1.5">{action.title}</h4>
+                    <p className="text-xs sm:text-sm opacity-90 leading-snug px-1">{action.description}</p>
+                  </div>
+                  <div className="mt-3 sm:mt-4 p-1.5 bg-white/20 rounded-full self-center transition-transform duration-200 group-hover:scale-110 group-hover:bg-white/30">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 opacity-90"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                  </div>
+                </div>
+              ))}
+              <div className="snap-end shrink-0 w-1 h-1 md:w-0"></div>
+            </div>
           </main>
         </>
       ) : (
-        <div className="w-full max-w-xs mx-auto my-16 md:my-20 p-8 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl border border-slate-200/50 relative z-20">
-           <p className="text-md text-slate-700 text-center mt-3 mb-6">Conéctate con World ID para participar.</p>
-          <button
-              type="button" onClick={handleSignInWithWorldID} disabled={isAuthLoading}
-              className={`${baseButtonClass} bg-sky-600 hover:bg-sky-500 focus:ring-sky-300 text-white py-3`}
-          >
-              {isAuthLoading ? 'Conectando...' : 'Iniciar Sesión con World ID'}
-          </button>
+        <div className="w-full max-w-md mx-auto my-10 p-8 sm:p-10 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/60 relative z-20 text-center animate-fadeIn">
+            <div className="flex justify-center mb-6">
+                <Image src="/CapitalWup.png" alt="Logo World ID" width={72} height={72} className="opacity-90 drop-shadow-lg" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-cyan-500 mb-3">
+                Bienvenido a Tu Espacio
+            </h1>
+            <p className="text-slate-600 mb-8 px-2 sm:text-lg leading-relaxed">
+                Conéctate de forma segura con tu World ID para acceder a todas las funcionalidades y ser parte de nuestra comunidad.
+            </p>
+
+            {authError && (
+              <div className="mb-6 p-3.5 bg-red-100 border border-red-300 text-red-700 rounded-xl text-sm text-left shadow-sm">
+                  <p className="font-semibold">Error de Autenticación:</p>
+                  <p>{authError}</p>
+              </div>
+            )}
+
+            <button type="button" onClick={handleSignInWithWorldID} disabled={isAuthLoading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 transform transition-all duration-200 ease-in-out hover:scale-[1.03] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 focus:ring-sky-400/50 text-white">
+              <WorldIdIcon className="w-7 h-7" />
+              {isAuthLoading ? 'Conectando con World ID...' : 'Iniciar Sesión con World ID'}
+            </button>
+            <p className="text-xs text-slate-500 mt-8">Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.</p>
         </div>
       )}
 
-      <footer className="mt-12 text-center text-sm text-slate-500 relative z-20">
-        <p>&copy; {new Date().getFullYear()} Tu App. Todos los derechos reservados.</p>
+      <footer className="mt-16 md:mt-20 text-center text-sm text-slate-500/90 relative z-20">
+        <p>&copy; {new Date().getFullYear()} CapitaWu. Todos los derechos reservados.</p>
+        <p className="text-xs text-slate-400/80 mt-1">Innovación financiera para todos.</p>
       </footer>
     </div>
   );
